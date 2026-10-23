@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WardFlow – Quarantine Centre Tracker</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1b2430;--mu:#667085;--bd:#e1e5ea;--pr:#1f6feb;--am:#b7791f;--amb:#fff4dc;--bl:#1f6feb;--blb:#e3eeff;--gr:#16794c;--grb:#dcf5e8;--pu:#6b3fc4;--pub:#ece4fb;--rd:#c62828;--rdb:#fde4e4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151c;--card:#19212b;--tx:#e8edf3;--mu:#98a4b3;--bd:#2a3541;--pr:#5b9bff;--am:#f0b95a;--amb:#3a2f14;--bl:#7db0ff;--blb:#14284a;--gr:#58d19a;--grb:#11382a;--pu:#b79af2;--pub:#2a1f4a;--rd:#ff7b7b;--rdb:#4a1a1a}}
+*{box-sizing:border-box}html,body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{background:var(--bg);color:var(--tx);font:15px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--bd);padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:17px;margin:0}h1 small{color:var(--mu);font-weight:400;margin-left:6px}
+nav{display:flex;gap:6px}
+nav button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on,.btn.pri{background:var(--pr);color:#fff;border-color:var(--pr)}
+.btn.sm{padding:4px 10px;font-size:13px}.btn.red{color:var(--rd);border-color:var(--rd)}
+main{max-width:1000px;margin:0 auto;padding:16px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px}
+.kpi b{display:block;font-size:26px}.kpi span{color:var(--mu);font-size:13px}
+.alert{background:var(--rdb);color:var(--rd);border:1px solid var(--rd);padding:10px 14px;border-radius:10px;margin-bottom:14px}
+.ok{background:var(--grb);color:var(--gr);border:1px solid var(--gr);padding:10px 14px;border-radius:10px;margin-bottom:14px}
+.row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.row:last-child{border:0}.row .g{flex:1;min-width:150px}.row small{color:var(--mu);display:block}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.t-am{background:var(--amb);color:var(--am)}.t-bl{background:var(--blb);color:var(--bl)}.t-gr{background:var(--grb);color:var(--gr)}.t-pu{background:var(--pub);color:var(--pu)}.t-rd{background:var(--rdb);color:var(--rd)}
+.beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+.bed{border-radius:6px;padding:4px 0;text-align:center;font-size:12px;cursor:pointer;border:1px solid var(--bd)}
+.bed.free{background:transparent;color:var(--mu);border-style:dashed}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+input,select,textarea{font:inherit;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+input.temp{width:84px}
+h2{font-size:16px;margin:18px 0 8px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal .card{max-width:440px;width:100%;max-height:90%;overflow:auto}
+.spark{display:block;margin:8px 0}
+.hint{color:var(--mu);font-size:13px}
+.flow{display:flex;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--mu);margin-bottom:12px}
+.flow span{background:var(--card);border:1px solid var(--bd);padding:3px 10px;border-radius:99px}
+</style></head><body>
+<header><h1>WardFlow<small id="day"></small></h1>
+<nav id="nav"></nav>
+<div><button class="btn sm" onclick="nextDay()">Start next day ▶</button> <button class="btn sm" onclick="resetAll()">Reset demo</button></div></header>
+<main id="app"></main>
+<div id="mod"></div>
+<script>
+const FEVER=38.0,CAP=74,KEY='wardflow_v1';
+let S,role='nurse',sel=null;
+const F=['Aarav','Priya','Rohan','Anika','Vikram','Neha','Arjun','Sana','Kabir','Meera','Ishaan','Diya','Rahul','Tara','Aditya','Zoya','Karan','Isha','Sameer','Nisha'],L=['Sharma','Patel','Khan','Iyer','Nair','Singh','Mehta','Das','Joshi','Rao','Gupta','Shah'];
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function seed(){
+ const p=[];
+ for(let i=1;i<=CAP;i++){
+  const ad=-R(0,11),f=R(3,8),t={},v={};
+  for(let d=ad;d<=0;d++){
+   const x=(d-ad<f)?38.2+Math.random()*1.8:36.5+Math.random();
+   if(d<0||Math.random()<.55){t[d]=[+x.toFixed(1)]}
+   if(d<0||(t[d]&&Math.random()<.3)){if(t[d])v[d]='Routine review'}
+  }
+  p.push({id:i,name:F[R(0,19)]+' '+L[R(0,11)],age:R(8,82),bed:i,admit:ad,t,v,st:'in',notes:[]});
+ }
+ return{day:0,p,nid:75,out:{cured:36,dead:6}};
+}
+function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S)S=seed()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const act=()=>S.p.filter(x=>x.st==='in');
+function streak(p){ // consecutive days (ending at latest reading) with no fever
+ const ds=Object.keys(p.t).map(Number).sort((a,b)=>b-a);let n=0,prev=null;
+ for(const d of ds){if(prev!==null&&prev-d!==1)break;if(Math.max(...p.t[d])>=FEVER)break;n++;prev=d}
+ return n}
+const hasT=p=>!!p.t[S.day],hasV=p=>!!p.v[S.day],ready=p=>streak(p)>=3;
+function state(p){if(ready(p))return['Ready to discharge','t-pu','#6b3fc4'];
+ if(!hasT(p))return['Temp pending','t-am','#d89b2b'];
+ if(!hasV(p))return['Awaiting doctor','t-bl','#3b82f6'];
+ return['Done today','t-gr','#22a06b']}
+function mort(){const o=S.out,n=o.cured+o.dead;return n?o.dead/n*100:0}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function spark(p){
+ const ds=Object.keys(p.t).map(Number).sort((a,b)=>a-b).slice(-10);if(!ds.length)return'';
+ const w=300,h=70,mn=35.5,mx=40,pts=ds.map((d,i)=>[ds.length>1?i*(w-20)/(ds.length-1)+10:w/2,h-8-(Math.max(...p.t[d])-mn)/(mx-mn)*(h-16)]);
+ const fy=h-8-(FEVER-mn)/(mx-mn)*(h-16);
+ return`<svg class="spark" viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><line x1="0" x2="${w}" y1="${fy}" y2="${fy}" stroke="#c62828" stroke-dasharray="4 3" opacity=".6"/><polyline fill="none" stroke="#1f6feb" stroke-width="2" points="${pts.map(q=>q.join(',')).join(' ')}"/>${pts.map((q,i)=>`<circle cx="${q[0]}" cy="${q[1]}" r="3.5" fill="${Math.max(...p.t[ds[i]])>=FEVER?'#c62828':'#16794c'}"/>`).join('')}</svg><div class="hint">Last ${ds.length} days · dashed line = fever threshold (${FEVER}°C)</div>`}
+function render(){
+ document.getElementById('day').textContent='Day '+(S.day+1)+' · '+act().length+'/'+CAP+' beds';
+ document.getElementById('nav').innerHTML=[['nurse','Nurse'],['doctor','Doctor'],['admin','Admin']].map(([k,l])=>`<button class="${role===k?'on':''}" onclick="role='${k}';render()">${l}</button>`).join('');
+ document.getElementById('app').innerHTML={nurse,doctor,admin}[role]();save()}
+function nurse(){
+ const a=act(),pend=a.filter(p=>!hasT(p)),done=a.filter(hasT);
+ return`<div class="flow"><span>1 Nurse records temp</span>→<span>2 Doctor sees it as ready</span>→<span>3 3 days no fever → auto-flag</span>→<span>4 Admin discharges</span></div>
+ <div class="grid"><div class="card kpi"><b>${pend.length}</b><span>Temps still to take today</span></div><div class="card kpi"><b>${done.length}</b><span>Already measured</span></div></div>
+ <div class="card"><b>To measure today</b> <span class="hint">– patients already measured are hidden, so no double readings</span>
+ ${pend.map(p=>`<div class="row"><div class="g"><b>${esc(p.name)}</b><small>Bed ${p.bed} · ${p.age}y · last: ${lastT(p)}</small></div><input class="temp" id="t${p.id}" type="number" step="0.1" min="34" max="43" placeholder="°C" onkeydown="if(event.key==='Enter')rec(${p.id})"><button class="btn pri sm" onclick="rec(${p.id})">Save</button></div>`).join('')||'<p class="ok">All temperatures recorded for today 🎉</p>'}</div>
+ <h2>Measured today</h2><div class="card">${done.map(p=>`<div class="row"><div class="g"><b>${esc(p.name)}</b><small>Bed ${p.bed}</small></div><span class="tag ${p.t[S.day][0]>=FEVER?'t-rd':'t-gr'}">${p.t[S.day][0]}°C</span><button class="btn sm" onclick="corr(${p.id})">Correct</button></div>`).join('')||'<span class="hint">None yet.</span>'}</div>`}
+function lastT(p){const d=Object.keys(p.t).map(Number).filter(x=>x<S.day).sort((a,b)=>b-a)[0];return d===undefined?'–':p.t[d][0]+'°C'}
+function rec(id){const p=S.p.find(x=>x.id===id),v=parseFloat(document.getElementById('t'+id).value);
+ if(isNaN(v)||v<34||v>43){alert('Enter a valid temperature between 34 and 43 °C');return}
+ p.t[S.day]=[v];render()}
+function corr(id){const p=S.p.find(x=>x.id===id),v=parseFloat(prompt('Corrected temperature (°C) for '+p.name,p.t[S.day][0]));if(!isNaN(v)&&v>=34&&v<=43){p.t[S.day]=[v];render()}}
+function doctor(){
+ const a=act().filter(p=>!hasV(p)||true),q=a.filter(p=>hasT(p)&&!hasV(p)),w=a.filter(p=>!hasT(p)),d=a.filter(hasV);
+ q.sort((x,y)=>Math.max(...y.t[S.day])-Math.max(...x.t[S.day]));
+ const row=(p,btn)=>{const s=state(p);return`<div class="row"><div class="g"><b>${esc(p.name)}</b><small>Bed ${p.bed} · ${p.age}y · ${hasT(p)?p.t[S.day][0]+'°C today':'no temp yet'} · fever-free streak ${streak(p)}/3</small></div><span class="tag ${s[1]}">${s[0]}</span>${btn}</div>`};
+ return`<div class="grid"><div class="card kpi"><b>${q.length}</b><span>Ready to visit (temp taken)</span></div><div class="card kpi"><b>${w.length}</b><span>Waiting on nurse</span></div><div class="card kpi"><b>${d.length}</b><span>Visited today</span></div></div>
+ <div class="card"><b>Visit queue</b> <span class="hint">– highest fever first</span>${q.map(p=>row(p,`<button class="btn pri sm" onclick="visit(${p.id})">Open chart</button>`)).join('')||'<p class="hint">No patients waiting.</p>'}</div>
+ <h2>Not ready – temperature not taken</h2><div class="card">${w.map(p=>row(p,'<button class="btn sm" disabled>Waiting</button>')).join('')||'<span class="hint">None.</span>'}</div>
+ <h2>Visited today</h2><div class="card">${d.map(p=>row(p,`<button class="btn sm" onclick="visit(${p.id})">View</button>`)).join('')||'<span class="hint">None yet.</span>'}</div>`}
+function visit(id){const p=S.p.find(x=>x.id===id);
+ document.getElementById('mod').innerHTML=`<div class="modal"><div class="card"><b>${esc(p.name)}</b> <span class="hint">Bed ${p.bed} · ${p.age}y · day ${S.day-p.admit+1} of stay</span>${spark(p)}
+ <p>Today: <b>${hasT(p)?p.t[S.day][0]+'°C':'not measured'}</b> · Fever-free streak: <b>${streak(p)}/3</b></p>
+ ${p.notes.slice(-3).map(n=>`<div class="hint">Day ${n.d+1}: ${esc(n.t)}</div>`).join('')}
+ <textarea id="nt" rows="3" style="width:100%" placeholder="Treatment / notes">${esc(p.v[S.day]&&p.v[S.day]!=='Routine review'?p.v[S.day]:'')}</textarea>
+ <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn pri" onclick="doVisit(${id})">Mark visited</button><button class="btn red" onclick="outcome(${id},'dead')">Record death</button><button class="btn" onclick="closeM()">Close</button></div></div></div>`}
+function doVisit(id){const p=S.p.find(x=>x.id===id),t=document.getElementById('nt').value.trim();p.v[S.day]=t||'Reviewed';if(t)p.notes.push({d:S.day,t});closeM();render()}
+function closeM(){document.getElementById('mod').innerHTML=''}
+function outcome(id,k){const p=S.p.find(x=>x.id===id);
+ if(k==='dead'&&!confirm('Record '+p.name+' as deceased and free bed '+p.bed+'?'))return;
+ p.st=k==='dead'?'dead':'cured';S.out[k==='dead'?'dead':'cured']++;closeM();render()}
+function admin(){
+ const a=act(),rd=a.filter(ready),m=mort(),free=CAP-a.length,over=m>15;
+ const taken=a.filter(hasT).length,vis=a.filter(hasV).length;
+ const occ=Object.fromEntries(a.map(p=>[p.bed,p]));let beds='';
+ for(let b=1;b<=CAP;b++){const p=occ[b];beds+=p?`<div class="bed" style="background:${state(p)[2]}22;border-color:${state(p)[2]}" title="${esc(p.name)}" onclick="visit(${p.id})">${b}</div>`:`<div class="bed free" onclick="admitForm(${b})">${b}</div>`}
+ return`${over?`<div class="alert"><b>Alert:</b> mortality is ${m.toFixed(1)}%, above the 15% benchmark. Review treatment protocols.</div>`:`<div class="ok">Mortality ${m.toFixed(1)}% – within the 15% benchmark.</div>`}
+ <div class="grid"><div class="card kpi"><b>${(100-m).toFixed(1)}%</b><span>Success rate (target 85%)</span></div><div class="card kpi"><b>${a.length}/${CAP}</b><span>Beds occupied · ${free} free</span></div><div class="card kpi"><b>${taken}/${a.length}</b><span>Temps taken today</span></div><div class="card kpi"><b>${vis}/${a.length}</b><span>Doctor visits today</span></div></div>
+ <div class="card"><b>Ready for discharge (${rd.length})</b> <span class="hint">– flagged automatically after 3 fever-free days</span>
+ ${rd.map(p=>`<div class="row"><div class="g"><b>${esc(p.name)}</b><small>Bed ${p.bed} · streak ${streak(p)} days</small></div><button class="btn pri sm" onclick="outcome(${p.id},'cured')">Discharge</button></div>`).join('')||'<p class="hint">Nobody eligible right now.</p>'}</div>
+ <h2>Bed map <span class="hint">(tap a free bed to admit)</span></h2><div class="card"><div class="beds">${beds}</div>
+ <div class="legend"><span class="tag t-am">Temp pending</span><span class="tag t-bl">Awaiting doctor</span><span class="tag t-gr">Done today</span><span class="tag t-pu">Ready to discharge</span><span class="tag" style="border:1px dashed var(--mu)">Free</span></div></div>
+ <h2>Outcomes to date</h2><div class="card">Cured/discharged: <b>${S.out.cured}</b> · Deceased: <b>${S.out.dead}</b> · Total outcomes: <b>${S.out.cured+S.out.dead}</b></div>`}
+function admitForm(b){document.getElementById('mod').innerHTML=`<div class="modal"><div class="card"><b>Admit patient to bed ${b}</b><div style="display:grid;gap:8px;margin:10px 0"><input id="an" placeholder="Full name"><input id="aa" type="number" placeholder="Age"></div><div style="display:flex;gap:8px"><button class="btn pri" onclick="admitP(${b})">Admit</button><button class="btn" onclick="closeM()">Cancel</button></div></div></div>`}
+function admitP(b){const n=document.getElementById('an').value.trim(),a=+document.getElementById('aa').value;if(!n||!a){alert('Name and age required');return}
+ S.p.push({id:S.nid++,name:n,age:a,bed:b,admit:S.day,t:{},v:{},st:'in',notes:[]});closeM();render()}
+function nextDay(){S.day++;render()}
+function resetAll(){if(confirm('Reset demo data?')){S=seed();render()}}
+load();render();
+</script></body></html>
